@@ -111,7 +111,12 @@
   if (form) {
     /* hitarneskot.localhost resolves to 127.0.0.1 in every browser; the tenant is
        keyed to that host. Overridable for a deployed preview. */
-    var API = window.HIT_API || 'http://hitarneskot.localhost:8787';
+    /* Only ever talk to the engine from a local run. A public preview that fetches
+       `localhost` shows the owner a failed request in the console and, in newer
+       Chrome, a local-network permission prompt, so off localhost the picker simply
+       shows every night open and the form says the desk is not switched on here. */
+    var LOCAL = /^(localhost|127\.0\.0\.1|hitarneskot\.localhost)$/.test(location.hostname);
+    var API = window.HIT_API || (LOCAL ? 'http://hitarneskot.localhost:8787' : '');
     /* The engine books by TYPE: the two Lake Houses are one `lake-house` type, so a
        night is open while either is free and the guest is placed in the first free
        one. A riders' group is an Ocean House request with the group flagged in the
@@ -256,6 +261,12 @@
         if (type) curType = type;
         curPeople = Math.max(1, people || curPeople || 1);
         var seq = ++fetchSeq;
+        if (!API) {
+          free = null;
+          $('staySrc').textContent = 'Design preview: every night shows open. Once the calendars are connected, nights booked on Airbnb or Booking.com or here are struck through automatically.';
+          render();
+          return;
+        }
         var ctrl = new AbortController();
         var timer = setTimeout(function () { ctrl.abort(); }, 8000);
         var u = API + '/booking/days?from=' + key(today) + '&days=365&people=' + curPeople + '&type=' + encodeURIComponent(curType);
@@ -360,6 +371,10 @@
         errForm.hidden = false;
       }
 
+      if (!API) {
+        fail('Online requests are not switched on in this design preview. Call +354 665 6366 or write to hitarnesfjorur@gmail.com.');
+        return;
+      }
       fetch(API + '/booking/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
